@@ -1,55 +1,73 @@
 import streamlit as st
-
-st.set_page_config(page_title="Hello Streamlit")
-st.title("👋 Hello from Streamlit")
-st.write("If you can see this, Streamlit is working fine.")
-import streamlit as st
 import os
 from openai import OpenAI
+from dotenv import load_dotenv
 
-# Page setup
-st.set_page_config(page_title="MyStudyPal", page_icon="📘", layout="centered")
+# Load your API key
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Title
-st.title("📘 MyStudyPal.ie – Your AI Study Buddy")
+# 🎨 Page setup
+st.set_page_config(
+    page_title="MyStudyPal — Ireland",
+    page_icon="📘",
+    layout="centered",
+)
 
-# Sidebar for settings
-st.sidebar.header("Study Settings")
-cycle = st.sidebar.selectbox("Select Cycle", ["Junior Cert", "Leaving Cert"])
-level = st.sidebar.selectbox("Select Level", ["Higher", "Ordinary"])
-subject = st.sidebar.selectbox("Select Subject", ["English", "Irish", "Maths", "Biology", "Geography", "History"])
-topic = st.sidebar.text_input("Enter Topic", "Photosynthesis")
+# 🧭 App Header
+st.title("📘 MyStudyPal — Ireland")
+st.write("Generate Irish-exam-focused notes, quizzes, and flashcards.")
 
-# Load API key from secrets
-api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    st.error("OpenAI API key not found. Please add it in Streamlit Secrets.")
+# 🧩 Inputs
+cycle = st.selectbox("Cycle", ["Junior Cycle", "Leaving Certificate"])
+level = st.selectbox("Level", ["Ordinary Level", "Higher Level"])
+subject = st.selectbox("Subject", [
+    "English", "Irish", "Maths", "Biology", "Chemistry", "Physics", "Geography", "History"
+])
+topic = st.text_input("Topic", placeholder="e.g. Photosynthesis")
+
+# ✍️ Generate Notes
+if st.button("📝 Generate Notes"):
+    if topic.strip():
+        with st.spinner("✍️ Creating your notes..."):
+            prompt = f"""
+            You are an expert Irish secondary school teacher. 
+            Create clear, exam-focused notes for the following:
+            Cycle: {cycle}
+            Level: {level}
+            Subject: {subject}
+            Topic: {topic}
+            Format it in short, clear bullet points.
+            """
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=prompt,
+                temperature=0.4,
+            )
+            notes = response.output_text
+            st.session_state["notes"] = notes
+            st.subheader("🧠 Your Study Notes")
+            st.markdown(notes)
+    else:
+        st.warning("Please enter a topic before generating notes!")
+
+# 🧩 Generate Quiz
+if "notes" in st.session_state:
+    if st.button("🧠 Make Quiz from Notes"):
+        with st.spinner("🧠 Creating quiz questions..."):
+            quiz_prompt = f"""
+            Based on these notes, create 5 multiple-choice quiz questions.
+            Provide 4 answer options for each (A-D), and mark the correct one.
+            Notes:
+            {st.session_state['notes']}
+            """
+            quiz_resp = client.responses.create(
+                model="gpt-4.1-mini",
+                input=quiz_prompt,
+                temperature=0.4,
+            )
+            quiz_text = quiz_resp.output_text
+            st.subheader("🧠 Quiz Questions")
+            st.markdown(quiz_text)
 else:
-    client = OpenAI(api_key=api_key)
-
-# Main content
-st.subheader(f"Generate study content for {topic}")
-
-col1, col2 = st.columns(2)
-with col1:
-    generate_notes = st.button("📝 Generate Notes")
-with col2:
-    generate_quiz = st.button("❓ Generate Quiz")
-
-if generate_notes and topic:
-    with st.spinner("Creating notes..."):
-        prompt = f"Create exam-focused revision notes for {cycle} {level} {subject} on the topic '{topic}', tailored to Irish exams."
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        st.markdown(response.choices[0].message.content)
-
-if generate_quiz and topic:
-    with st.spinner("Generating quiz..."):
-        prompt = f"Create 5 exam-style questions with answers for {cycle} {level} {subject} on '{topic}', following Irish exam format."
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        st.markdown(response.choices[0].message.content)
+    st.button("🧠 Make Quiz from Notes", disabled=True)
