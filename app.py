@@ -26,6 +26,36 @@ subject = st.selectbox("Subject", [
 ])
 topic = st.text_input("Topic", placeholder="e.g. Photosynthesis")
 
+# 📄 Use Irish Past Papers (Optional)
+st.subheader("📄 Use Irish Past Papers (Optional)")
+
+folder_path = "/Users/davidlawlor/Documents/Past Exams/Maths"
+pdf_files = list_papers(folder_path)
+
+if pdf_files:
+    selected_pdf = st.selectbox("Choose a past paper", pdf_files)
+    if st.button("📘 Summarise this Paper"):
+        with st.spinner("Reading and summarising..."):
+            pdf_text = read_pdf(selected_pdf)
+            prompt = f"""
+            You are an Irish maths teacher. Summarise key topics, question types,
+            and exam trends found in this past paper. Focus on marking scheme expectations
+            and tips for Leaving/Junior Cert students.
+            Content:
+            {pdf_text[:8000]}  # limit to avoid hitting token limits
+            """
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=prompt,
+                temperature=0.4,
+            )
+            summary = response.output_text
+            st.subheader("📘 Paper Summary")
+            st.markdown(summary)
+else:
+    st.info("No PDF files found in your Maths folder. Add some to /Users/davidlawlor/Documents/Past Exams/Maths")
+
+
 # ✍️ Generate Notes
 if st.button("📝 Generate Notes"):
     if topic.strip():
@@ -71,3 +101,4 @@ if "notes" in st.session_state:
             st.markdown(quiz_text)
 else:
     st.button("🧠 Make Quiz from Notes", disabled=True)
+
